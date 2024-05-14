@@ -1,0 +1,22 @@
+1. Acceder al archivo de jenkins y cambiar el usuario a root:
+
+sudo nano /etc/default/jenkins
+
+----
+JENKINS_USER=root
+JENKINS_GROUP=root
+----
+
+2. Actualizar el jenkins service a usuario root
+
+sudo nano /usr/lib/systemd/system/jenkins.service
+
+----
+User=root
+Group=root
+----
+
+3. Reiniciar
+
+sudo systemctl daemon-reload
+sudo service jenkins restart

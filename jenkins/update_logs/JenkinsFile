@@ -1,0 +1,98 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'ApacheLogFilePath', description: 'Ruta log Apache', defaultValue: '/home/manager/Escritorio/logs_apache/error.log')
+        string(name: 'TomcatLogFilePath', description: 'Ruta log Tomcat', defaultValue: '/home/manager/Escritorio/logs_postgre/postgresql-2024-02-21_094305.log')
+        string(name: 'PostgreLogFilePath', description: 'Ruta log Postgre', defaultValue: '/home/manager/Escritorio/logs_tomcat/catalina.2024-02-21.log')
+    }
+
+    stages {
+        stage('Update Apache log') {
+            steps {
+                script {
+                    println "Ruta archivo log: ${params.ApacheLogFilePath}"
+                    // Contenido
+                    def content = '''
+                    [Tue Mar 05 08:26:57.196335 2024] [ssl:warn] [pid 1960:tid 356] AH01909: www.example.com:443:0 server certificate does NOT include an ID which matches the server name
+                    '''
+
+                    // Verificar si el archivo existe
+                    def fileExists = fileExists(params.ApacheLogFilePath)
+
+                    // Si el archivo existe, leer su contenido
+                    def existingContent = fileExists ? readFile(params.ApacheLogFilePath).trim() : ''
+
+                    // Concatenar el contenido existente con el nuevo contenido
+                    def finalContent = existingContent + (existingContent ? '\n' : '') + content.trim()
+
+                    // Escribir el contenido
+                    writeFile file: "${params.ApacheLogFilePath}", text: finalContent
+                }
+            }
+        }
+
+        stage('Update Tomcat log') {
+            steps {
+                script {
+                    println "Ruta archivo log: ${params.TomcatLogFilePath}"
+                    // Contenido del otro archivo
+                    def content = '''
+                    2024-02-22 09:49:59.120 CET [6996] ERROR:  cancelando la sentencia debido a una petición del usuario
+                    '''
+
+                    // Verificar si el archivo existe
+                    def fileExists = fileExists(params.TomcatLogFilePath)
+
+                    // Si el archivo existe, leer su contenido
+                    def existingContent = fileExists ? readFile(params.TomcatLogFilePath).trim() : ''
+
+                    // Concatenar el contenido existente con el nuevo contenido
+                    def finalContent = existingContent + (existingContent ? '\n' : '') + content.trim()
+
+                    // Escribir el contenido final
+                    writeFile file: "${params.TomcatLogFilePath}", text: finalContent
+                }
+            }
+        }
+
+        stage('Update Postgre log') {
+            steps {
+                script {
+                    println "Ruta archivo log: ${params.PostgreLogFilePath}"
+                    // Contenido del otro archivo
+                    def content = '''
+                    21-Feb-2024 14:16:39.031 WARNING [localhost-startStop-2] org.apache.catalina.loader.WebappClassLoaderBase.clearReferencesObjectStreamClassCaches Failed to clear soft references from ObjectStreamClass$Caches for web application [docs]
+                    java.lang.ClassCastException: class java.io.ObjectStreamClass$Caches$1 cannot be cast to class java.util.Map (java.io.ObjectStreamClass$Caches$1 and java.util.Map are in module java.base of loader 'bootstrap')
+                        at org.apache.catalina.loader.WebappClassLoaderBase.clearCache(WebappClassLoaderBase.java:2342)
+                        at org.apache.catalina.loader.WebappClassLoaderBase.clearReferencesObjectStreamClassCaches(WebappClassLoaderBase.java:2317)
+                        at org.apache.catalina.loader.WebappClassLoaderBase.clearReferences(WebappClassLoaderBase.java:1680)
+                        at org.apache.catalina.loader.WebappClassLoaderBase.stop(WebappClassLoaderBase.java:1610)
+                        at org.apache.catalina.loader.WebappLoader.stopInternal(WebappLoader.java:455)
+                        at org.apache.catalina.util.LifecycleBase.stop(LifecycleBase.java:257)
+                        at org.apache.catalina.core.StandardContext.stopInternal(StandardContext.java:5505)
+                        at org.apache.catalina.util.LifecycleBase.stop(LifecycleBase.java:257)
+                        at org.apache.catalina.core.ContainerBase$StopChild.call(ContainerBase.java:1443)
+                        at org.apache.catalina.core.ContainerBase$StopChild.call(ContainerBase.java:1432)
+                        at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+                        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+                        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+                        at java.base/java.lang.Thread.run(Thread.java:842)
+                    '''
+
+                    // Verificar si el archivo existe
+                    def fileExists = fileExists(params.PostgreLogFilePath)
+
+                    // Si el archivo existe, leer su contenido
+                    def existingContent = fileExists ? readFile(params.PostgreLogFilePath).trim() : ''
+
+                    // Concatenar el contenido existente con el nuevo contenido
+                    def finalContent = existingContent + (existingContent ? '\n' : '') + content.trim()
+
+                    // Escribir el contenido
+                    writeFile file: "${params.PostgreLogFilePath}", text: finalContent
+                }
+            }
+        }
+    }
+}
