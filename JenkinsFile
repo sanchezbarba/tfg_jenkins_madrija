@@ -1,0 +1,776 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'decoderFilePath', description: 'Ruta del archivo local_decoder.xml', defaultValue: '/var/ossec/etc/prueba/local_decoder.xml')
+        string(name: 'rulesFilePath', description: 'Ruta del archivo local_rules.xml', defaultValue: '/var/ossec/etc/prueba/local_rules.xml')
+        string(name: 'ossecFilePath', description: 'Ruta del archivo ossec.conf', defaultValue: '/var/ossec/etc/prueba/ossec.conf')
+
+    }
+
+    stages {
+        stage('Set up local_decoder.xml') {
+            steps {
+                script {
+                    println "Ruta del archivo local_decoder.xml: ${params.decoderFilePath}"
+                    // Contenido del archivo local_decoder.xml
+                    def content = '''
+                    <!-- Decoders especificos para el archivo versions.txt -->
+
+                    <decoder name="hospital_name">
+                      <prematch>Hospital name</prematch>
+                      <regex>^Hospital name: (\\.+)</regex>
+                      <order>nombre</order>
+                    </decoder>
+
+                    <decoder name="ssoo_version">
+                      <prematch>Operating system</prematch>
+                      <regex>^Operating system: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <decoder name="java_version">
+                      <prematch>Java version</prematch>
+                      <regex>^Java version: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <decoder name="php_version">
+                      <prematch>PHP version</prematch>
+                      <regex>^PHP version: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <decoder name="elasticsearch_version">
+                      <prematch>Elasticsearch version</prematch>
+                      <regex>^Elasticsearch version: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <decoder name="kibana_version">
+                      <prematch>Kibana version</prematch>
+                      <regex>^Kibana version: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <decoder name="chromedriver_version">
+                      <prematch>Chromedriver version</prematch>
+                      <regex>^Chromedriver version: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <decoder name="postgresql_version">
+                      <prematch>PostgreSQL version</prematch>
+                      <regex>^PostgreSQL version: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <decoder name="apache_version">
+                      <prematch>Apache version</prematch>
+                      <regex>^Apache version: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <decoder name="tomcat_version">
+                      <prematch>^Tomcat version</prematch>
+                      <regex>^Tomcat version: (\\.+)</regex>
+                      <order>version</order>
+                    </decoder>
+
+                    <!-- Decoder especifico para la monitorización de archivos -->
+
+                    <decoder name="added_hospital">
+                      <prematch>^Info</prematch>
+                      <regex type="pcre2">^Info: \\/home\\/msanchez\\/analysis_(.+)\\.zip added to server</regex>
+                      <order>hospital</order>
+                    </decoder>
+
+                    <!-- Decoder especifico para logs de Apache -->
+
+                    <decoder name="apache_info_errorlog">
+                      <prematch>^[\\w+ \\w+ \\d+ \\d+:\\d+:\\d+.\\d+ \\d+] [\\S+:info] </prematch>
+                      <regex type="pcre2" offset="after_prematch">\\[pid \\d+:tid \\d+\\] (.+)</regex>
+                      <order>message</order>
+                    </decoder>
+
+                    <decoder name="apache_notice_errorlog">
+                      <prematch>^[\\w+ \\w+ \\d+ \\d+:\\d+:\\d+.\\d+ \\d+] [\\S+:notice] </prematch>
+                      <regex type="pcre2" offset="after_prematch">\\[pid \\d+:tid \\d+\\] (.+)</regex>
+                      <order>message</order>
+                    </decoder>
+
+                    <decoder name="apache_warn_errorlog">
+                      <prematch>^[\\w+ \\w+ \\d+ \\d+:\\d+:\\d+.\\d+ \\d+] [\\S*:warn] </prematch>
+                      <regex type="pcre2" offset="after_prematch">\\[pid \\d+:tid \\d+\\] (.+)</regex>
+                      <order>message</order>
+                    </decoder>
+
+                    <decoder name="apache_error_errorlog">
+                      <prematch>^[\\w+ \\w+ \\d+ \\d+:\\d+:\\d+.\\d+ \\d+] [\\S*:error] </prematch>
+                      <regex type="pcre2" offset="after_prematch">\\[pid \\d+:tid \\d+\\] (.+)</regex>
+                      <order>message</order>
+                    </decoder>
+
+                    <decoder name="apache_access_log">
+                      <prematch type="pcre2">^\\d+\\.\\d+\\.\\d+\\.\\d+ - - \\[\\d+\\/\\w+\\/\\d+\\:\\d+\\:\\d+\\:\\d+ \\+\\d+\\] </prematch>
+                      <regex type="pcre2" offset="after_prematch">"(.+)"</regex>
+                      <order>body</order>
+                    </decoder>
+
+                    <!-- Decoder especifico para logs de Postgre -->
+
+                    <decoder name="postgre_log">
+                      <prematch type="pcre2">^\\d+\\-\\d+\\-\\d+ \\d+\\:\\d+\\:\\d+\\.\\d+ \\w+ \\[\\d+\\] LOG:  </prematch>
+                      <regex type="pcre2" offset="after_prematch">(.+)</regex>
+                      <order>message</order>
+                    </decoder>
+
+                    <decoder name="postgre_error_log">
+                      <prematch type="pcre2">^\\d+\\-\\d+\\-\\d+ \\d+\\:\\d+\\:\\d+\\.\\d+ \\w+ \\[\\d+\\] ERROR:  </prematch>
+                      <regex type="pcre2" offset="after_prematch">(.+)</regex>
+                      <order>message</order>
+                    </decoder>
+
+                    <!-- Decoder especifico para logs de Tomcat -->
+
+                    <decoder name="tomcat_localhost_log">
+                      <prematch type="pcre2">^\\d+\\-\\w+\\-\\d+ \\d+\\:\\d+\\:\\d+\\.\\d+ \\w+ \\[.+\\] </prematch>
+                      <regex type="pcre2" offset="after_prematch">(.+)</regex>
+                      <order>message</order>
+                    </decoder>
+
+                    <decoder name="tomcat_catalinalog">
+                      <prematch>^"type": "tomcat", "date": "(.+)", "time": "(.+)", </prematch>
+                      <regex>"body": "(.+)"</regex>
+                      <order>body</order>
+                    </decoder>
+
+                    '''
+
+                    // Escribir el contenido en local_decoder.xml
+                    writeFile file: "${params.decoderFilePath}", text: content.trim()
+                }
+            }
+        }
+
+        stage('Set up local_rules.xml') {
+            steps {
+                script {
+                    println "Ruta del archivo local_rules.xml: ${params.rulesFilePath}"
+                    // Contenido del archivo local_rules.xml
+                    def content = '''
+                    <!-- Reglas especificas para el archivo versions.txt -->
+                    <!-- Wazuh has reserved the range of IDs between 100000 and 120000 to use when creating custom rules -->
+                    <!-- decoded_as, nombre del decodificador asociado-->
+                    <!-- lv3 Successful events / lv4 System low priority error-->
+                    <!-- field, para asociar valores - negate=yes -> ! -->
+
+                    <group name="hospital_analysis,syslog">
+                        <rule id="111111" level="3">
+                            <decoded_as>hospital_name</decoded_as>
+                            <description>Nombre del hospital</description>
+                        </rule>
+
+                        <rule id="111112" level="3">
+                            <decoded_as>ssoo_version</decoded_as>
+                            <description>Version del SSOO</description>
+                        </rule>
+
+                        <rule id="111113" level="3">
+                            <decoded_as>java_version</decoded_as>
+                            <!-- <field name="version">17</field> -->
+                            <description>Version de Java compatible</description>
+                        </rule>
+
+                        <rule id="111114" level="3">
+                            <decoded_as>php_version</decoded_as>
+                            <description>Version de PHP</description>
+                        </rule>
+
+                        <rule id="111115" level="3">
+                            <decoded_as>elasticsearch_version</decoded_as>
+                            <description>Version de Elasticsearch</description>
+                        </rule>
+
+                        <rule id="111116" level="3">
+                            <decoded_as>kibana_version</decoded_as>
+                            <description>Version de Kibana</description>
+                        </rule>
+
+                        <rule id="111117" level="3">
+                            <decoded_as>chromedriver_version</decoded_as>
+                            <description>Version de ChromeDriver</description>
+                        </rule>
+
+                        <rule id="111118" level="3">
+                            <decoded_as>postgresql_version</decoded_as>
+                            <description>Version de PostgreSQL</description>
+                        </rule>
+
+                        <rule id="111119" level="3">
+                            <decoded_as>apache_version</decoded_as>
+                            <description>Version de Apache</description>
+                        </rule>
+
+                        <rule id="111120" level="3">
+                            <decoded_as>tomcat_version</decoded_as>
+                            <field name="version">9</field>
+                            <description>Version de Tomcat</description>
+                        </rule>
+
+                        <rule id="111122" level="4">
+                            <decoded_as>tomcat_version</decoded_as>
+                            <field name="version" negate="yes">9</field>
+                            <description>Version de Tomcat</description>
+                        </rule>
+                    </group>
+
+                    <!-- Rule especifico para la monitorización de archivos -->
+
+                    <group name="zip_added,syslog">
+                        <rule id="111123" level="3">
+                            <decoded_as>added_hospital</decoded_as>
+                            <description>Fichero zip añadido al servidor</description>
+                        </rule>
+                    </group>
+
+                    <!-- Rule especifico para logs de Apache-->
+
+                    <group name="apache,syslog">
+                        <rule id="111124" level="2">
+                            <decoded_as>apache_access_log</decoded_as>
+                            <description>Apache: access log</description>
+                        </rule>
+
+                        <rule id="111125" level="2">
+                            <decoded_as>apache_info_errorlog</decoded_as>
+                            <description>Apache: Info error log</description>
+                        </rule>
+
+                        <rule id="111129" level="2">
+                            <decoded_as>apache_notice_errorlog</decoded_as>
+                            <description>Apache: Notice error log</description>
+                        </rule>
+
+                        <rule id="111130" level="6">
+                            <decoded_as>apache_warn_errorlog</decoded_as>
+                            <description>Apache: Warning error log</description>
+                        </rule>
+
+                        <rule id="111131" level="8">
+                            <decoded_as>apache_error_errorlog</decoded_as>
+                            <description>Apache: Error error log</description>
+                        </rule>
+                    </group>
+
+                    <!-- Rule especifico para logs de Postgre -->
+
+                    <group name="postgre,syslog">
+                        <rule id="111126" level="2">
+                            <decoded_as>postgre_log</decoded_as>
+                            <description>Postgre: log</description>
+                        </rule>
+
+                        <rule id="111132" level="8">
+                            <decoded_as>postgre_error_log</decoded_as>
+                            <description>Postgre: Error log</description>
+                        </rule>
+                    </group>
+
+
+                    <!-- Rule especifico para logs de Tomcat -->
+                    <group name="tomcat,syslog">
+                        <rule id="111127" level="2">
+                          <decoded_as>tomcat_localhost_log</decoded_as>
+                          <description>Tomcat: localhost log</description>
+                        </rule>
+
+                        <rule id="111128" level="0">
+                          <decoded_as>json</decoded_as>
+                          <field name="type">^tomcat$</field>
+                          <description>Tomcat rules group</description>
+                        </rule>
+
+                        <rule id="111133" level="6">
+                          <if_sid>111128</if_sid>
+                          <field name="body">^WARNING</field>
+                          <description>Tomcat: Warning catalina log</description>
+                        </rule>
+                    </group>
+                    '''
+
+                    // Escribir el contenido en local_rules.xml
+                    writeFile file: "${params.rulesFilePath}", text: content.trim()
+                }
+            }
+        }
+
+        stage('Set up ossec.conf') {
+           steps {
+                script{
+                    println "Ruta del archivo ossec.conf: ${params.ossecFilePath}"
+                    // Contenido del archivo ossec.conf
+                    def content = '''
+                    <!--
+                      Wazuh - Manager - Default configuration for ubuntu 22.04
+                      More info at: https://documentation.wazuh.com
+                      Mailing list: https://groups.google.com/forum/#!forum/wazuh
+                    -->
+
+                    <ossec_config>
+                      <global>
+                        <jsonout_output>yes</jsonout_output>
+                        <alerts_log>yes</alerts_log>
+                        <logall>yes</logall>
+                        <logall_json>yes</logall_json>
+                        <email_notification>no</email_notification>
+                        <smtp_server>smtp.example.wazuh.com</smtp_server>
+                        <email_from>wazuh@example.wazuh.com</email_from>
+                        <email_to>recipient@example.wazuh.com</email_to>
+                        <email_maxperhour>12</email_maxperhour>
+                        <email_log_source>alerts.log</email_log_source>
+                        <agents_disconnection_time>10m</agents_disconnection_time>
+                        <agents_disconnection_alert_time>0</agents_disconnection_alert_time>
+                      </global>
+
+                      <alerts>
+                        <log_alert_level>3</log_alert_level>
+                        <email_alert_level>12</email_alert_level>
+                      </alerts>
+
+                      <!-- Choose between "plain", "json", or "plain,json" for the format of internal logs -->
+                      <logging>
+                        <log_format>plain</log_format>
+                      </logging>
+
+                      <remote>
+                        <connection>secure</connection>
+                        <port>1514</port>
+                        <protocol>tcp</protocol>
+                        <queue_size>131072</queue_size>
+                      </remote>
+
+                      <remote>
+                        <connection>syslog</connection>
+                        <port>514</port>
+                        <protocol>udp</protocol>
+                        <allowed-ips>10.0.2.0/24</allowed-ips>
+                      </remote>
+
+
+                      <!-- Policy monitoring -->
+                      <rootcheck>
+                        <disabled>no</disabled>
+                        <check_files>yes</check_files>
+                        <check_trojans>yes</check_trojans>
+                        <check_dev>yes</check_dev>
+                        <check_sys>yes</check_sys>
+                        <check_pids>yes</check_pids>
+                        <check_ports>yes</check_ports>
+                        <check_if>yes</check_if>
+
+                        <!-- Frequency that rootcheck is executed - every 12 hours -->
+                        <frequency>43200</frequency>
+
+                        <rootkit_files>etc/rootcheck/rootkit_files.txt</rootkit_files>
+                        <rootkit_trojans>etc/rootcheck/rootkit_trojans.txt</rootkit_trojans>
+
+                        <skip_nfs>yes</skip_nfs>
+                      </rootcheck>
+
+                      <wodle name="cis-cat">
+                        <disabled>yes</disabled>
+                        <timeout>1800</timeout>
+                        <interval>1d</interval>
+                        <scan-on-start>yes</scan-on-start>
+
+                        <java_path>wodles/java</java_path>
+                        <ciscat_path>wodles/ciscat</ciscat_path>
+                      </wodle>
+
+                      <!-- Osquery integration -->
+                      <wodle name="osquery">
+                        <disabled>yes</disabled>
+                        <run_daemon>yes</run_daemon>
+                        <log_path>/var/log/osquery/osqueryd.results.log</log_path>
+                        <config_path>/etc/osquery/osquery.conf</config_path>
+                        <add_labels>yes</add_labels>
+                      </wodle>
+
+                      <!-- System inventory -->
+                      <wodle name="syscollector">
+                        <disabled>no</disabled>
+                        <interval>1h</interval>
+                        <scan_on_start>yes</scan_on_start>
+                        <hardware>yes</hardware>
+                        <os>yes</os>
+                        <network>yes</network>
+                        <packages>yes</packages>
+                        <ports all="no">yes</ports>
+                        <processes>yes</processes>
+
+                        <!-- Database synchronization settings -->
+                        <synchronization>
+                          <max_eps>10</max_eps>
+                        </synchronization>
+                      </wodle>
+
+                      <sca>
+                        <enabled>yes</enabled>
+                        <scan_on_start>yes</scan_on_start>
+                        <interval>12h</interval>
+                        <skip_nfs>yes</skip_nfs>
+                      </sca>
+
+                      <vulnerability-detector>
+                        <enabled>no</enabled>
+                        <interval>5m</interval>
+                        <min_full_scan_interval>6h</min_full_scan_interval>
+                        <run_on_start>yes</run_on_start>
+
+                        <!-- Ubuntu OS vulnerabilities -->
+                        <provider name="canonical">
+                          <enabled>no</enabled>
+                          <os>trusty</os>
+                          <os>xenial</os>
+                          <os>bionic</os>
+                          <os>focal</os>
+                          <os>jammy</os>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                        <!-- Debian OS vulnerabilities -->
+                        <provider name="debian">
+                          <enabled>no</enabled>
+                          <os>buster</os>
+                          <os>bullseye</os>
+                          <os>bookworm</os>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                        <!-- RedHat OS vulnerabilities -->
+                        <provider name="redhat">
+                          <enabled>no</enabled>
+                          <os>5</os>
+                          <os>6</os>
+                          <os>7</os>
+                          <os>8</os>
+                          <os>9</os>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                        <!-- Amazon Linux OS vulnerabilities -->
+                        <provider name="alas">
+                          <enabled>no</enabled>
+                          <os>amazon-linux</os>
+                          <os>amazon-linux-2</os>
+                          <os>amazon-linux-2022</os>
+                          <os>amazon-linux-2023</os>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                        <!-- SUSE OS vulnerabilities -->
+                        <provider name="suse">
+                          <enabled>no</enabled>
+                          <os>11-server</os>
+                          <os>11-desktop</os>
+                          <os>12-server</os>
+                          <os>12-desktop</os>
+                          <os>15-server</os>
+                          <os>15-desktop</os>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                        <!-- Arch OS vulnerabilities -->
+                        <provider name="arch">
+                          <enabled>no</enabled>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                        <!-- Alma Linux OS vulnerabilities -->
+                        <provider name="almalinux">
+                          <enabled>no</enabled>
+                          <os>8</os>
+                          <os>9</os>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                        <!-- Windows OS vulnerabilities -->
+                        <provider name="msu">
+                          <enabled>yes</enabled>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                        <!-- Aggregate vulnerabilities -->
+                        <provider name="nvd">
+                          <enabled>yes</enabled>
+                          <update_interval>1h</update_interval>
+                        </provider>
+
+                      </vulnerability-detector>
+
+                      <!-- File integrity monitoring -->
+                      <syscheck>
+                        <disabled>no</disabled>
+
+                        <!-- Frequency that syscheck is executed default every 12 hours -->
+                        <frequency>43200</frequency>
+
+                        <scan_on_start>yes</scan_on_start>
+
+                        <!-- Generate alert when new file detected -->
+                        <alert_new_files>yes</alert_new_files>
+
+                        <!-- Dont ignore files that change more than 'frequency' times -->
+                        <auto_ignore frequency="10" timeframe="3600">no</auto_ignore>
+
+                        <!-- Directories to check  (perform all possible verifications) -->
+                        <directories>/etc,/usr/bin,/usr/sbin</directories>
+                        <directories>/bin,/sbin,/boot</directories>
+                        <directories realtime="yes" report_changes="yes" whodata="yes">/home/manager/Escritorio/pruebas</directories>
+
+                        <!-- Files/directories to ignore -->
+                        <ignore>/etc/mtab</ignore>
+                        <ignore>/etc/hosts.deny</ignore>
+                        <ignore>/etc/mail/statistics</ignore>
+                        <ignore>/etc/random-seed</ignore>
+                        <ignore>/etc/random.seed</ignore>
+                        <ignore>/etc/adjtime</ignore>
+                        <ignore>/etc/httpd/logs</ignore>
+                        <ignore>/etc/utmpx</ignore>
+                        <ignore>/etc/wtmpx</ignore>
+                        <ignore>/etc/cups/certs</ignore>
+                        <ignore>/etc/dumpdates</ignore>
+                        <ignore>/etc/svc/volatile</ignore>
+
+                        <!-- File types to ignore -->
+                        <ignore type="sregex">.log$|.swp$</ignore>
+
+                        <!-- Check the file, but never compute the diff -->
+                        <nodiff>/etc/ssl/private.key</nodiff>
+
+                        <skip_nfs>yes</skip_nfs>
+                        <skip_dev>yes</skip_dev>
+                        <skip_proc>yes</skip_proc>
+                        <skip_sys>yes</skip_sys>
+
+                        <!-- Nice value for Syscheck process -->
+                        <process_priority>10</process_priority>
+
+                        <!-- Maximum output throughput -->
+                        <max_eps>50</max_eps>
+
+                        <!-- Database synchronization settings -->
+                        <synchronization>
+                          <enabled>yes</enabled>
+                          <interval>5m</interval>
+                          <max_eps>10</max_eps>
+                        </synchronization>
+                      </syscheck>
+
+                      <!-- Active response -->
+                      <global>
+                        <white_list>127.0.0.1</white_list>
+                        <white_list>^localhost.localdomain$</white_list>
+                        <white_list>127.0.0.53</white_list>
+                      </global>
+
+                      <command>
+                        <name>disable-account</name>
+                        <executable>disable-account</executable>
+                        <timeout_allowed>yes</timeout_allowed>
+                      </command>
+
+                      <command>
+                        <name>restart-wazuh</name>
+                        <executable>restart-wazuh</executable>
+                      </command>
+
+                      <command>
+                        <name>firewall-drop</name>
+                        <executable>firewall-drop</executable>
+                        <timeout_allowed>yes</timeout_allowed>
+                      </command>
+
+                      <command>
+                        <name>host-deny</name>
+                        <executable>host-deny</executable>
+                        <timeout_allowed>yes</timeout_allowed>
+                      </command>
+
+                      <command>
+                        <name>route-null</name>
+                        <executable>route-null</executable>
+                        <timeout_allowed>yes</timeout_allowed>
+                      </command>
+
+                      <command>
+                        <name>win_route-null</name>
+                        <executable>route-null.exe</executable>
+                        <timeout_allowed>yes</timeout_allowed>
+                      </command>
+
+                      <command>
+                        <name>netsh</name>
+                        <executable>netsh.exe</executable>
+                        <timeout_allowed>yes</timeout_allowed>
+                      </command>
+
+                      <!--
+                      <active-response>
+                        active-response options here
+                      </active-response>
+                      -->
+
+                      <!-- Log analysis -->
+                      <localfile>
+                        <log_format>command</log_format>
+                        <command>df -P</command>
+                        <frequency>360</frequency>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>full_command</log_format>
+                        <command>netstat -tulpn | sed 's/\\([[:alnum:]]\\+\\)\\ \\+[[:digit:]]\\+\\ \\+[[:digit:]]\\+\\ \\+\\(.*\\):\\([[:digit:]]*\\)\\ \\+\\([0-9\\.\\:\\*]\\+\\).\\+\\ \\([[:digit:]]*\\/[[:alnum:]\\-]*\\).*/\\1 \\2 == \\3 == \\4 \\5/' | sort -k 4 -g | sed 's/ == \\(.*\\) ==/:\\1/' | sed 1,2d</command>
+                        <alias>netstat listening ports</alias>
+                        <frequency>360</frequency>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>full_command</log_format>
+                        <command>last -n 20</command>
+                        <frequency>360</frequency>
+                      </localfile>
+
+                      <ruleset>
+                        <!-- Default ruleset -->
+                        <decoder_dir>ruleset/decoders</decoder_dir>
+                        <rule_dir>ruleset/rules</rule_dir>
+                        <rule_exclude>0215-policy_rules.xml</rule_exclude>
+                        <list>etc/lists/audit-keys</list>
+                        <list>etc/lists/amazon/aws-eventnames</list>
+                        <list>etc/lists/security-eventchannel</list>
+
+                        <!-- User-defined ruleset -->
+                        <decoder_dir>etc/decoders</decoder_dir>
+                        <rule_dir>etc/rules</rule_dir>
+                      </ruleset>
+
+                      <rule_test>
+                        <enabled>yes</enabled>
+                        <threads>1</threads>
+                        <max_sessions>64</max_sessions>
+                        <session_timeout>15m</session_timeout>
+                      </rule_test>
+
+                      <!-- Configuration for wazuh-authd -->
+                      <auth>
+                        <disabled>no</disabled>
+                        <port>1515</port>
+                        <use_source_ip>no</use_source_ip>
+                        <purge>yes</purge>
+                        <use_password>no</use_password>
+                        <ciphers>HIGH:!ADH:!EXP:!MD5:!RC4:!3DES:!CAMELLIA:@STRENGTH</ciphers>
+                        <!-- <ssl_agent_ca></ssl_agent_ca> -->
+                        <ssl_verify_host>no</ssl_verify_host>
+                        <ssl_manager_cert>etc/sslmanager.cert</ssl_manager_cert>
+                        <ssl_manager_key>etc/sslmanager.key</ssl_manager_key>
+                        <ssl_auto_negotiate>no</ssl_auto_negotiate>
+                      </auth>
+
+                      <cluster>
+                        <name>wazuh</name>
+                        <node_name>node01</node_name>
+                        <node_type>master</node_type>
+                        <key></key>
+                        <port>1516</port>
+                        <bind_addr>0.0.0.0</bind_addr>
+                        <nodes>
+                            <node>NODE_IP</node>
+                        </nodes>
+                        <hidden>no</hidden>
+                        <disabled>yes</disabled>
+                      </cluster>
+
+                    </ossec_config>
+
+                    <ossec_config>
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/var/ossec/logs/active-responses.log</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/var/log/auth.log</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/var/log/syslog</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/var/log/dpkg.log</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/var/log/kern.log</location>
+                      </localfile>
+
+
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/home/manager/Escritorio/analysis_Hospital Universitario Severo Ochoa/hospital_versions.txt</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/home/manager/Escritorio/pruebas/log_info.log</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/home/manager/Escritorio/logs_apache/access.log</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/home/manager/Escritorio/logs_apache/error.log</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/home/manager/Escritorio/logs_postgre/postgresql*.log</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>syslog</log_format>
+                        <location>/home/manager/Escritorio/logs_tomcat/localhost*.log</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>json</log_format>
+                        <location>/home/manager/Escritorio/logs_tomcat/archivo.json</location>
+                      </localfile>
+
+                      <localfile>
+                        <log_format>multi-line-regex</log_format>
+                        <location>/home/manager/Escritorio/logs_tomcat/catalina*.log</location>
+                        <multiline_regex replace="wspace">^BVB</multiline_regex>
+                     </localfile>
+
+                    </ossec_config>
+                    '''
+
+                    // Escribir el contenido en ossec.conf
+                    writeFile file: "${params.ossecFilePath}", text: content.trim()
+
+                }
+           }
+        }
+    }
+}
